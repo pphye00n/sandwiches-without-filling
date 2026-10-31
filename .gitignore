@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.duckdb
+*.npy
+*.parquet
+out/
