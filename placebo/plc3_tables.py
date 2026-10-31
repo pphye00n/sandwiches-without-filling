@@ -6,7 +6,7 @@ import json, os, sys
 O = sys.argv[1] if len(sys.argv) > 1 else '.'
 J = lambda f: json.load(open(os.path.join(O, f)))
 has = lambda f: os.path.exists(os.path.join(O, f))
-V10 = [v for v in ('P1', 'P3', 'P2s', 'P2n', 'H20', 'H40', 'K2', 'K5', 'K8', 'S1') if has(f'report_{v}.json')]
+V10 = [v for v in ('P1', 'P3', 'P2s', 'P2n', 'H20', 'H40', 'K2', 'K5', 'K8', 'S1', 'Y5', 'Y8', 'Yb') if has(f'report_{v}.json')]
 R = {v: J(f'report_{v}.json') for v in V10}
 E = J('extra.json') if has('extra.json') else None
 B = J('baseline.json') if has('baseline.json') else None
@@ -17,7 +17,7 @@ ci = lambda c: f'{100 * c[0]:.1f}% [{100 * c[1]:.1f}–{100 * c[2]:.1f}]'
 DESC = {'P1': 'after an executed buy ≥ 0.1 WSOL, next slot · k from gated gaps', 'P3': 'random (pool, slot) · k from gated gaps',
         'P2s': 'right after the curve-creation tx, same slot · k from gated gaps', 'P2n': 'slot after curve creation · k from gated gaps',
         'H20': 'P1 trigger · k ~ U{1..20}', 'H40': 'P1 trigger · k ~ U{1..40}', 'K2': 'P1 trigger · k = 2', 'K5': 'P1 trigger · k = 5',
-        'K8': 'P1 trigger · k = 8', 'S1': 'as P1 · 1 WSOL'}
+        'K8': 'P1 trigger · k = 8', 'S1': 'as P1 · 1 WSOL', 'Y5': 'P1 trigger on young pools (≤ 150 slots) · k = 5', 'Y8': 'P1 trigger on young pools (≤ 150 slots) · k = 8', 'Yb': 'P1 trigger on young pools (≤ 150 slots) · k from real bots'}
 
 print('### Table A. Variants (each alone over the whole window · 0.1 WSOL, S1 = 1 WSOL · REF_MIN 0.01)\n')
 print('| variant | trigger · placement · k | round trips | gated labelled [95%] | in-window share → labelled in window | per-chunk sd (min–max) | '

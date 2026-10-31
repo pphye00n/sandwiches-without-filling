@@ -1,12 +1,12 @@
 """Generate one zero-information synthetic trader variant as rows in the authors' `swaps` schema (14 columns), using only their `swaps` and gated `sandwiches` tables."""
 # 위약 3판 생성기 — 한 DB 에 한 변형 · 창 전체 조각 · 그들 `swaps` 14칸 + 그들 정제 `sandwiches`(간격·블록 안 자리 분포)만 읽음.
-#   변형마다 따로(섞임 0) · 조각당 방아쇠 --per-chunk 개를 해시 순서로(같은 씨앗 = 같은 방아쇠) · k 법칙 = 정제 간격 분포 | 고정값 | U{1..20} | U{1..40}.
+#   변형마다 따로(섞임 0) · 조각당 방아쇠 --per-chunk 개를 해시 순서로(같은 씨앗 = 같은 방아쇠) · k 법칙 = 정제 간격 분포 | real bot 정제 간격 분포 | 고정값 | U{1..20} | U{1..40}.
 #   값(자기 충격 없음): 앞다리 = 그 자리 뒤 첫 실제 같은 방향 거래(≥ REF_MIN) 평균가 · 뒷다리 = 그 자리 뒤 첫 실제 매도(≥ REF_MIN) 평균가.
 #   대체 사슬: 뒤 실제 거래(≥ REF_MIN) → 앞 실제 거래(≥ REF_MIN) → 뒤 아무 크기 → 앞 아무 크기 · 대체는 표지(ref_f · ref_b)로 남김(죽은 출시도 분모에).
 #   참조 매수 피해자 막기: 앞다리 값이 뒤 실제 매수에서 왔으면 그 매수가 그들 피해 조건(v_in·f_out > v_out·f_in)을 float64 로도 못 넘게
 #   앞다리 토큰 수를 math.nextafter 로 한 칸씩 내림.
 #   결정성: 방아쇠·분포 배열은 정렬해서 읽음(같은 씨앗·같은 DuckDB/NumPy 판이면 같은 결과).
-# 설정 JSON: {name, trig: P1|P2|P3, place: next|same|next_first, k: sampled|정수|U20|U40, size}
+# 설정 JSON: {name, trig: P1|P2|P3, place: next|same|next_first, k: sampled|realbot|정수|U20|U40, size[, age_max]}
 #   P1 = 남의 체결된 매수(WSOL ≥ 0.1) 방아쇠 · P2 = 곡선 풀 첫 스왑(생성 tx) 방아쇠 · P3 = 거래가 있던 (풀, 슬롯) 무작위 + 0~10 슬롯.
 #   place next = 방아쇠 다음 슬롯 · 자리 = 정제 앞다리 블록 안 상대 자리 분포 · same = 방아쇠 tx 바로 뒤(같은 slot · tx_index · swap_index 900).
 # 산출: OUT.parquet(합성 swaps 줄) · OUT_meta.parquet(왕복마다 자리·k·값·대체 표지) · OUT_gen.json(설정·씨앗·건수).
@@ -32,6 +32,7 @@ WSOL = add_authors_modules(args.nph)
 DB, OUTP, LO, HI = args.base_db, args.out, args.lo, args.hi
 NPC, SEED, CFG, REF_MIN, CHUNKS = args.per_chunk, args.seed, json.loads(args.config), args.ref_min, args.chunks
 NAME, TRIG, PLACE, KLAW, SIZE = CFG['name'], CFG['trig'], CFG.get('place', 'next'), str(CFG.get('k', 'sampled')), float(CFG.get('size', 0.1))
+AGE_MAX = CFG.get('age_max')   # 있으면 P1 · P3 방아쇠를 '젊은 풀'로 제한: 앞다리 슬롯 − 그 풀 첫 스왑 슬롯 ≤ AGE_MAX(첫 스왑이 자료 시작 + 2,000 슬롯 뒤인 풀만)
 t0 = time.time()
 def say(*a):
     print(f'[{time.time()-t0:7.1f}s]', *a, flush=True)
@@ -46,6 +47,8 @@ con.execute(f"""CREATE TEMP TABLE wpool AS SELECT pool, any_value(program) AS pr
     FROM swaps WHERE NOT failed AND (token_in = '{WSOL}' OR token_out = '{WSOL}') GROUP BY 1""")
 # 분포(그들 정제 sandwiches) — k 'sampled' · 앞/뒤 블록 안 상대 자리
 kd = np.array([r[0] for r in con.execute(f"SELECT slots_apart FROM sandwiches WHERE front_slot BETWEEN {LO} AND {HI} ORDER BY 1").fetchall()], dtype=np.int64)
+if KLAW == 'realbot':          # k 를 실제 real bot(그들 real_bots) 정제 샌드위치의 간격 분포에서
+    kd = np.array([r[0] for r in con.execute(f"SELECT slots_apart FROM sandwiches WHERE front_slot BETWEEN {LO} AND {HI} AND bot_front IN (SELECT bot FROM real_bots) ORDER BY 1").fetchall()], dtype=np.int64)
 rel_f = np.array([r[0] for r in con.execute(f"""SELECT s.tx_index::DOUBLE / z.n_idx FROM (SELECT DISTINCT front_tx FROM sandwiches WHERE front_slot BETWEEN {LO} AND {HI}) x
     JOIN (SELECT DISTINCT tx_sig, slot::BIGINT AS slot, tx_index FROM swaps WHERE slot BETWEEN {LO} AND {HI + 64}) s ON s.tx_sig = x.front_tx JOIN slotsz z ON z.slot = s.slot ORDER BY 1""").fetchall()])
 rel_b = np.array([r[0] for r in con.execute(f"""SELECT s.tx_index::DOUBLE / z.n_idx FROM (SELECT DISTINCT back_tx FROM sandwiches WHERE front_slot BETWEEN {LO} AND {HI}) x
@@ -55,12 +58,17 @@ slot_bt = dict(con.execute("SELECT slot, bt FROM slotsz").fetchall())
 FRONT_HI = HI - 60          # 마지막 조각: 뒷다리가 탐지기 재료 범위(hi + 128) 안에
 chunk_ids = list(range((HI - LO) // CH + 1))
 use = set(chunk_ids) if CHUNKS == 'all' else {int(x) for x in CHUNKS.split(',')}
-say(NAME, TRIG, PLACE, KLAW, SIZE, 'REF_MIN', REF_MIN, 'chunks', len(use), 'k dist', np.percentile(kd, [10, 50, 90]).tolist())
+say(NAME, TRIG, PLACE, KLAW, SIZE, 'age_max', AGE_MAX, 'REF_MIN', REF_MIN, 'chunks', len(use), 'k dist', np.percentile(kd, [10, 50, 90]).tolist())
 win = f"slot BETWEEN {LO} AND {FRONT_HI}"
+# 젊은 풀 조건(P1: 앞다리 = 다음 슬롯 → 방아쇠 슬롯 + 1 − 첫 슬롯 ≤ AGE_MAX · P3 는 방아쇠 슬롯 기준)
+AGE_SQL = '' if AGE_MAX is None else (f"AND w.first_ord // 1000000000 >= {data_lo + 2000} "
+                                       f"AND s.slot + {1 if TRIG == 'P1' else 0} - w.first_ord // 1000000000 <= {int(AGE_MAX)}")
+if AGE_MAX is not None and TRIG not in ('P1', 'P3'):
+    raise SystemExit('age_max applies to P1 and P3 triggers only')
 if TRIG == 'P1':
     trig = con.execute(f"""SELECT pool, slot::BIGINT, tx_index::BIGINT, swap_index::BIGINT, (slot - {LO}) // {CH} AS ch FROM (
         SELECT s.*, row_number() OVER (PARTITION BY (s.slot - {LO}) // {CH} ORDER BY hash(s.tx_sig || s.pool || '{SEED}')) AS rn
-        FROM swaps s JOIN wpool w USING (pool) WHERE NOT s.failed AND s.token_in = '{WSOL}' AND s.amount_in >= 0.1 AND s.{win})
+        FROM swaps s JOIN wpool w USING (pool) WHERE NOT s.failed AND s.token_in = '{WSOL}' AND s.amount_in >= 0.1 AND s.{win} {AGE_SQL})
         WHERE rn <= {NPC} ORDER BY slot, tx_index, swap_index, pool""").fetchall()
 elif TRIG == 'P2':
     trig = con.execute(f"""SELECT pool, slot, tx_index, swap_index, (slot - {LO}) // {CH} AS ch FROM (
@@ -71,7 +79,7 @@ elif TRIG == 'P2':
 else:
     trig = con.execute(f"""SELECT pool, slot, 0, 0, (slot - {LO}) // {CH} AS ch FROM (
         SELECT pool, slot::BIGINT AS slot, row_number() OVER (PARTITION BY (slot - {LO}) // {CH} ORDER BY hash(pool || slot::VARCHAR || '{SEED}')) AS rn
-        FROM (SELECT DISTINCT s.pool, s.slot FROM swaps s JOIN wpool w USING (pool) WHERE NOT s.failed AND s.{win}))
+        FROM (SELECT DISTINCT s.pool, s.slot FROM swaps s JOIN wpool w USING (pool) WHERE NOT s.failed AND s.{win} {AGE_SQL}))
         WHERE rn <= {NPC} ORDER BY slot, pool""").fetchall()
 say('triggers', len(trig))
 
@@ -103,7 +111,7 @@ for pool, ts, ti, tw, ch in trig:
         if fs is None:
             st['noslot'] += 1; continue
         fi = int(rng.choice(rel_f) * slot_n[fs])
-    if KLAW == 'sampled':
+    if KLAW in ('sampled', 'realbot'):
         k = int(rng.choice(kd))
     elif KLAW.startswith('U'):
         k = int(rng.integers(1, int(KLAW[1:]) + 1))

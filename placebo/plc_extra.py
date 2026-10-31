@@ -11,7 +11,7 @@ from plc_common import CHUNK as CH, CURVE, PUMPSWAP, add_common_args, add_author
 ap = add_common_args(argparse.ArgumentParser(description=__doc__.splitlines()[0]))
 ap.add_argument('--base-db', required=True, help="the authors' Solana DB after their stages 1-6; opened read-only")
 ap.add_argument('--work', required=True, help='folder with placebo_<V>.duckdb and synth_<V>_meta.parquet')
-ap.add_argument('--variants', default='P1,P3,P2s,P2n,H20,H40,K2,K5,K8,S1')
+ap.add_argument('--variants', default='P1,P3,P2s,P2n,H20,H40,K2,K5,K8,S1,Y5,Y8,Yb')
 ap.add_argument('--lo', type=int, required=True)
 ap.add_argument('--hi', type=int, required=True)
 ap.add_argument('--out', required=True, help='output JSON')

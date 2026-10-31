@@ -3,7 +3,7 @@
 # 필요한 환경변수: BASE_DB · NPH_REPO · WORK · LO · HI · 고를 수 있는 것: PY · VARIANTS.
 set -u
 : "${BASE_DB:?set BASE_DB}" "${NPH_REPO:?set NPH_REPO}" "${WORK:?set WORK}" "${LO:?set LO}" "${HI:?set HI}"
-PY=${PY:-python3}; VARIANTS=${VARIANTS:-P1,P3,P2s,P2n,H20,H40,K2,K5,K8,S1}
+PY=${PY:-python3}; VARIANTS=${VARIANTS:-P1,P3,P2s,P2n,H20,H40,K2,K5,K8,S1,Y5,Y8,Yb}
 HERE=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$WORK/logs"
 export NPH_REPO

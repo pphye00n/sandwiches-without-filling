@@ -38,6 +38,9 @@ variant K2  31001 '{"name":"K2","trig":"P1","place":"next","k":2,"size":0.1}' 0.
 variant K5  31001 '{"name":"K5","trig":"P1","place":"next","k":5,"size":0.1}' 0.01 all
 variant K8  31001 '{"name":"K8","trig":"P1","place":"next","k":8,"size":0.1}' 0.01 all
 variant S1  31001 '{"name":"S1","trig":"P1","place":"next","k":"sampled","size":1.0}' 0.01 all
+variant Y5  31001 '{"name":"Y5","trig":"P1","place":"next","k":5,"size":0.1,"age_max":150}' 0.01 all
+variant Y8  31001 '{"name":"Y8","trig":"P1","place":"next","k":8,"size":0.1,"age_max":150}' 0.01 all
+variant Yb  31001 '{"name":"Yb","trig":"P1","place":"next","k":"realbot","size":0.1,"age_max":150}' 0.01 all
 # REF_MIN 민감도: 10조각(0,3,…,27) · 같은 씨앗 → 같은 방아쇠·자리·k · 값 규칙만 다름
 SUB=${SUB:-0,3,6,9,12,15,18,21,24,27}
 variant P1r2  31001 '{"name":"P1r2","trig":"P1","place":"next","k":"sampled","size":0.1}' 0.02 "$SUB"

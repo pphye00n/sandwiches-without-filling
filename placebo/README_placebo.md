@@ -79,7 +79,7 @@ Runs are sequential. On our 44-hour window, one variant took about 15–20 minut
 
 ## Variants
 
-All variants place one synthetic round trip per trigger: a buy of `size` WSOL, then a full sell of the tokens `k` slots later. Each pool holds at most one open synthetic position; a trigger that would overlap is skipped. The in-block position of each leg is drawn from the relative in-block positions of the gated front and back legs in the base `sandwiches`.
+The config key `age_max` (Y5, Y8) restricts P1 and P3 triggers to young pools. All variants place one synthetic round trip per trigger: a buy of `size` WSOL, then a full sell of the tokens `k` slots later. Each pool holds at most one open synthetic position; a trigger that would overlap is skipped. The in-block position of each leg is drawn from the relative in-block positions of the gated front and back legs in the base `sandwiches`.
 
 | Variant | Trigger | Front leg placement | k (back slot − front slot) | Size (WSOL) | Seed | REF_MIN |
 |---|---|---|---|---|---|---|
@@ -93,6 +93,9 @@ All variants place one synthetic round trip per trigger: a buy of `size` WSOL, t
 | K5 | as P1 | next slot | 5 | 0.1 | 31001 | 0.01 |
 | K8 | as P1 | next slot | 8 | 0.1 | 31001 | 0.01 |
 | S1 | as P1 | next slot | gated distribution | 1.0 | 31001 | 0.01 |
+| Y5 | as P1, young pools only (front slot − the pool's first swap ≤ 150 slots; pool first seen ≥ 2,000 slots after the data start) | next slot | 5 | 0.1 | 31001 | 0.01 |
+| Y8 | as Y5 | next slot | 8 | 0.1 | 31001 | 0.01 |
+| Yb | as Y5 | next slot | drawn from the real bots' gated `slots_apart` distribution (`k: realbot`) | 0.1 | 31001 | 0.01 |
 | P1r2, P1r5 | as P1 | as P1 | as P1 | 0.1 | 31001 | 0.02, 0.05 (`SUB` chunks) |
 | P3r2, P3r5 | as P3 | as P3 | as P3 | 0.1 | 31003 | 0.02, 0.05 (`SUB` chunks) |
 | H20r2, H20r5 | as H20 | as H20 | as H20 | 0.1 | 31001 | 0.02, 0.05 (`SUB` chunks) |

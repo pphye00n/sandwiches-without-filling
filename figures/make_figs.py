@@ -1,10 +1,10 @@
-"""Figures 1-3 of the note from the JSON outputs. Set SWF_OUT to the folder that holds quarters.json, probe_age3_{a,b}.json and placebo2/ (default ../out)."""
+"""Figures for the note (draft v0). Reads ../out/*.json → fig1_composition.png · fig2_curve_timing.png · fig3_placebo.png"""
 import json, os
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-H = os.path.dirname(os.path.abspath(__file__)); O = os.environ.get('SWF_OUT', os.path.join(H, '..', 'out'))  # folder holding quarters.json, probe_age3_*.json, placebo2/
+H = os.path.dirname(os.path.abspath(__file__)); O = os.environ.get('SWF_OUT', os.path.join(H, '..', 'out'))  # folder holding quarters.json, probe_age3_*.json, placebo2/, placebo3/
 BLUE, ORANGE, GRAY, INK, INK2, GRID = '#2a78d6', '#eb6834', '#b9b8b3', '#0b0b0b', '#52514e', '#e6e5e1'
 plt.rcParams.update({'font.size': 9, 'font.family': 'DejaVu Sans', 'axes.edgecolor': INK2, 'axes.labelcolor': INK, 'xtick.color': INK2, 'ytick.color': INK2,
                      'axes.spines.top': False, 'axes.spines.right': False, 'figure.facecolor': 'white', 'axes.facecolor': 'white', 'savefig.dpi': 200})
@@ -38,28 +38,30 @@ ax.set_ylim(0, 1.0); ax.set_xlim(0.9, 3e4); ax.set_ylabel('share of front legs')
 ax.yaxis.grid(True, color=GRID, linewidth=0.8); ax.set_axisbelow(True)
 fig.tight_layout(); fig.savefig(os.path.join(H, 'fig2_curve_timing.png')); plt.close(fig)
 
-# Fig 3 — placebo: share of zero-information round trips labelled as sandwiches
-names = {'P1': 'follow an executed buy, next slot (base)', 'Pa': 'follow an executed buy, same slot', 'Pb': 'follow an executed buy, top of next slot',
+# Fig 3 — placebo (3rd run, all chunks): in-window labelled share per setting + real-trader baseline
+names = {'P1': 'follow an executed buy, next slot (base)', 'P2s': 'buy in the creation slot', 'P2n': 'buy one slot after creation',
+         'P3': 'random time in an active pool', 'H20': 'base, hold 1–20 slots', 'H40': 'base, hold 1–40 slots',
          'K2': 'base, hold exactly 2 slots', 'K5': 'base, hold exactly 5 slots', 'K8': 'base, hold exactly 8 slots', 'S1': 'base, 1 SOL front leg',
-         'P2': 'buy right after token creation (priced launches)', 'Pn': 'buy one slot after token creation', 'P3': 'random time in an active pool'}
+         'Y5': 'base, pools < 150 slots old, hold 5', 'Y8': 'base, pools < 150 slots old, hold 8'}
+P2 = os.path.join(O, 'placebo2'); P3 = os.path.join(O, 'placebo3'); ew = json.load(open(os.path.join(P2, 'extra.json')))['placebo_in_window']
 rows = []
-for f in ('report_main.json', 'report_sens.json'):
-    d = json.load(open(os.path.join(O, 'placebo', f)))
-    share = {v['variant']: v['gated_share'] for v in d['per_variant']}
-    for st in d['synth_bot_stats']:
-        k = st[0].replace('SYNTH', ''); rows.append((k, share[k], bool(st[11])))
-rows = sorted({r[0]: r for r in rows}.values(), key=lambda r: r[1])
-fig, ax = plt.subplots(figsize=(6.5, 3.6)); y = np.arange(len(rows)) + 2
+for k in names:
+    src = P3 if k.startswith('Y') else P2
+    r = json.load(open(os.path.join(src, f'report_{k}.json'))); inw = r['gated_share_ci'][0] if k.startswith('Y') else ew[k]['hit_in_window_ci'][0]
+    rows.append((k, inw, r['gated_share_ci'][0] >= 0.25))
+rows.sort(key=lambda r: r[1])
+bl = json.load(open(os.path.join(P2, 'baseline.json')))
+ref = [("real traders' short round trips, not detected bots", bl['in_window_realbot_vs_other']['other']['hit_ci'][0]), ("all real traders' short round trips", bl['short_rt_in_window']['hit_ci'][0])]
+fig, ax = plt.subplots(figsize=(6.5, 4.0)); y = np.arange(len(rows))
 for yi, (k, v, rb) in zip(y, rows):
     ax.barh(yi, v * 100, 0.66, color=ORANGE if rb else BLUE); ax.text(v * 100 + 0.6, yi, f'{v:.1%}', va='center', fontsize=7.5, color=INK)
-ref = [('all buys in the market', 0.0089), ("real bots' buys (selected on density)", 0.41)]
-for yi, (lab, v) in zip((0, 1), ref):
-    ax.barh(yi, v * 100, 0.66, color=GRAY); ax.text(v * 100 + 0.6, yi, f'{v:.2%}' if v < 0.01 else f'{v:.0%}', va='center', fontsize=7.5, color=INK)
-ax.set_yticks(list(y) + [0, 1], [names[r[0]] for r in rows] + [r[0] for r in ref], fontsize=7.5)
-ax.axvline(25, color=INK2, linewidth=0.9, linestyle=(0, (3, 3))); ax.text(25.4, len(rows) + 1.7, 'real-bot density floor (25%)', fontsize=7.5, color=INK2, va='center'); ax.set_ylim(-0.6, len(rows) + 2.2)
-ax.set_xlim(0, 58); ax.set_xlabel('round trips labelled as sandwiches (%)'); ax.xaxis.grid(True, color=GRID, linewidth=0.8); ax.set_axisbelow(True)
+for j, (lab, v) in enumerate(ref):
+    yi = len(rows) + 0.6 + j; ax.barh(yi, v * 100, 0.66, color=GRAY); ax.text(v * 100 + 0.6, yi, f'{v:.1%}', va='center', fontsize=7.5, color=INK)
+ax.set_yticks(list(y) + [len(rows) + 0.6, len(rows) + 1.6], [names[r[0]] for r in rows] + [r[0] for r in ref], fontsize=7.5)
+ax.axvline(25, color=INK2, linewidth=0.9, linestyle=(0, (3, 3))); ax.text(25.4, len(rows) + 2.35, 'density floor (25%)', fontsize=7.5, color=INK2, va='center'); ax.set_ylim(-0.6, len(rows) + 2.8)
+ax.set_xlim(0, 64); ax.set_xlabel('short in-window round trips labelled as sandwiches (%)'); ax.xaxis.grid(True, color=GRID, linewidth=0.8); ax.set_axisbelow(True)
 from matplotlib.patches import Patch
-ax.legend(handles=[Patch(color=ORANGE, label='passes all real-bot thresholds'), Patch(color=BLUE, label='fails the density floor only'), Patch(color=GRAY, label='reference')],
-          frameon=False, fontsize=7.5, loc='lower right', bbox_to_anchor=(1.0, 0.2))
+ax.legend(handles=[Patch(color=ORANGE, label='placebo: density clears the floor'), Patch(color=BLUE, label='placebo: density below the floor'), Patch(color=GRAY, label='real traders, same definition')],
+          frameon=False, fontsize=7.5, loc='lower right', bbox_to_anchor=(1.0, 0.0))
 fig.tight_layout(); fig.savefig(os.path.join(H, 'fig3_placebo.png')); plt.close(fig)
 print('figs ok')
