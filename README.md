@@ -16,10 +16,10 @@ Everything here uses only (a) the authors' released dataset and code and (b) pub
 ## Reproduction
 
 1. **Dataset.** Build a manifest (part file name, sha256) from the Hugging Face listing of `data_v3`, then `python dataset/decode_dataset.py MANIFEST.tsv dec/`. This produces one `rec_XXXX.npy` per part and the key tables. Expect 28,042,725 records and 8,631 bots.
-2. **Composition.** `python dataset/quarters.py dec/ quarters.json` (Table 1, Figure 1); `python dataset/aggregate.py dec/ agg.json`.
+2. **Composition.** `python dataset/quarters.py dec/ quarters.json` (Table 1, Figure 1); `python dataset/venue_quarter.py dec/ venue_quarter.json` (per-venue shares and profit, §3); `python dataset/aggregate.py dec/ agg.json`.
 3. **Bonding-curve age.** `PROGS=1 python chain/curve_age.py curve_age.json 30 82 83 ... 151` (one public RPC call per sampled record; the public endpoint rate-limits, so allow an hour).
 4. **Tight sandwiches.** `python dataset/tight_concentration.py dec/ bots.txt`; `python chain/tight_blocks.py data_v3/ tight.json 10 120 128 134 139 145`; `python chain/validator_share.py dec/ bots.txt v1.txt v1_share.json`; `python chain/neighbor_tips.py tight.json v1_share.json neighbors.json`.
-5. **Placebo.** See `placebo/README.md`. The injector reads only the `swaps` table (the authors' schema) and the `sandwiches` table produced by their detector; it works on any database built with their ingest code.
+5. **Placebo.** See `placebo/README_placebo.md`. The injector reads only the `swaps` table (the authors' schema) and the `sandwiches` table produced by their detector; it works on any database built with their ingest code.
 6. **Figures.** `SWF_OUT=<folder with the JSON outputs> python figures/make_figs.py`.
 
 Validator and bot identities are not named in the note; the scripts above recover them from the public data.

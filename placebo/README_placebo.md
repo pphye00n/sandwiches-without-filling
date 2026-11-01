@@ -18,7 +18,7 @@ Each variant gets its own placebo database, so variants never interact. The auth
 
 | Table | Producer | Used by |
 |---|---|---|
-| `swaps` (14 columns: `slot, block_time, tx_sig, tx_index, swap_index, program, trader, signer, pool, token_in, token_out, amount_in, amount_out, failed`) | their `ingest/fetch_swaps_solana.py` | all scripts |
+| `swaps` (14 columns: `slot, block_time, tx_sig, tx_index, swap_index, program, trader, signer, pool, token_in, token_out, amount_in, amount_out, failed`) | their `solana/ingest/fetch_swaps_solana.py` | all scripts |
 | `slot_leaders` | their ingest | detector, leader-window tests |
 | `token_transfers` | their ingest; if missing, an empty table with their schema is created in the placebo DB | detector (evasive branch) |
 | `sandwiches_raw`, `sandwiches`, `trader_swap_counts`, `bot_stats`, `real_bots` | their stages 2–6 on the base DB | generator (gap and in-block position distributions), report (hygiene), baseline, extra |

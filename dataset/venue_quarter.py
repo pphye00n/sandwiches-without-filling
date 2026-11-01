@@ -1,5 +1,5 @@
-"""(FRA) 분기 × 거래소(Raydium v4 / 본딩커브 / PumpSwap / 그 밖) × 꼴(tight/within/cross) 건수 + 풀 쪽 수익(앞다리 wSOL 투입 행 · SOL) → JSON. 심판 R5·R6.
-usage: venue_quarter_fra.py DEC_DIR OUT.json"""
+"""Per-quarter counts by venue (Raydium v4 / bonding curve / PumpSwap / other) and type (tight / within-block / cross-block), and pool-side profit in SOL (records whose front leg spends wSOL) -> JSON (Section 3).
+usage: venue_quarter.py DEC_DIR OUT.json"""
 import sys, glob, json, datetime
 import numpy as np
 A = np.concatenate([np.load(f, mmap_mode='r')[['day', 'program', 'type', 'profit', 'mint_in']] for f in sorted(glob.glob(f'{sys.argv[1]}/rec_*.npy'))])

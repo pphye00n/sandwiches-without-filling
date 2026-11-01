@@ -1,4 +1,4 @@
-"""Aggregate the decoded dataset: per-program counts, per-quarter composition, slot gaps, victims, per-bot and per-pool statistics (Sections 3 of the note).
+"""Aggregate the decoded dataset: per-program counts, per-quarter composition, slot gaps, victims, per-bot and per-pool statistics (Section 3 of the note).
 usage: aggregate.py DEC_DIR OUT.json"""
 import sys, glob, json, datetime, collections
 import numpy as np
@@ -32,7 +32,9 @@ for k, v in sorted(rowsA.items(), key=lambda kv: -kv[1]['n']):
     print(f"  {k:24s} n {v['n']:>11,} ({v['share']:.1%}) · 봇 {v['bots']:>5,} · 풀 {v['pools']:>9,} · 앞다리 SOL {v['sol_front_share']:.0%} · 수익 SOL 합 {v['profit_sol_sum']:>12,.0f} · tight/within/cross {v['tight']:.0%}/{v['within']:.0%}/{v['cross']:.0%} · evasive {v['evasive']:.1%}")
 # B 분기별
 d0 = datetime.date(2023, 1, 1)
-q = np.array([(d0 + datetime.timedelta(days=int(x))).strftime('%Y') + 'Q' + str((d0 + datetime.timedelta(days=int(x))).month // 4 + 1) for x in range(int(A['day'].max()) + 1)])
+def qq(x):
+    d = d0 + datetime.timedelta(days=int(x)); return f'{d.year}Q{(d.month - 1) // 3 + 1}'
+q = np.array([qq(x) for x in range(int(A['day'].max()) + 1)])
 qa = q[A['day']]
 pump = np.isin(A['program'], [1, 2])
 out['by_quarter'] = {}
